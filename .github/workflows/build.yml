@@ -597,7 +597,7 @@ jobs:
           $env:CGO_ENABLED = "0"
           go run -v "github.com/sagernet/cronet-go/cmd/build-naive@$CRONET_GO_VERSION" extract-lib --target windows/${{ matrix.arch }} -o dist
       - name: Archive
-        if: matrix.naive
+        if: false
         run: |
           $DIR_NAME = "sing-box-${{ needs.calculate_version.outputs.version }}-windows-${{ matrix.arch }}"
           mkdir "dist/$DIR_NAME"
@@ -616,7 +616,7 @@ jobs:
           Compress-Archive -Path "dist/$DIR_NAME" -DestinationPath "dist/$DIR_NAME.zip"
           Remove-Item -Recurse "dist/$DIR_NAME"
       - name: Cleanup
-        if: matrix.naive
+        if: false
         run: Remove-Item dist/sing-box.exe, dist/libcronet.dll
       - name: Cleanup
         if: ${{ !matrix.naive }}

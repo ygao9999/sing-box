@@ -591,7 +591,7 @@ jobs:
           GOARCH: ${{ matrix.arch }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract libcronet.dll
-        if: matrix.naive
+        if: false
         run: |
           $CRONET_GO_VERSION = Get-Content .github/CRONET_GO_VERSION
           $env:CGO_ENABLED = "0"

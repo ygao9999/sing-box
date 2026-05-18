@@ -237,7 +237,7 @@ jobs:
           GOMIPS64: ${{ matrix.gomips }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract libcronet.so
-        if: matrix.variant == 'purego' && matrix.naive
+        if: false
         run: |
           cd ~/cronet-go
           CGO_ENABLED=0 go run -v ./cmd/build-naive extract-lib --target ${{ matrix.os }}/${{ matrix.arch }} -o $GITHUB_WORKSPACE/dist

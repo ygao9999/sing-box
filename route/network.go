@@ -484,12 +484,14 @@ func (r *NetworkManager) ResetNetwork() {
 }
 
 // findFallbackInterface scans all network interfaces to find an active,
-// non-loopback interface with IPv4 addresses. This is used as a fallback when
-// the default interface monitor fails to find a 0.0.0.0/0 default route
-// (e.g., USB hotspot without a default gateway, or stale permanent routes
-// pointing to disconnected NICs).
+// non-loopback, non-virtual physical interface with IPv4 addresses. This is used
+// as a fallback when the default interface monitor fails to find a 0.0.0.0/0 default route.
 func (r *NetworkManager) findFallbackInterface() *control.Interface {
 	interfaces := r.interfaceFinder.Interfaces()
+	myInterface := ""
+	if r.interfaceMonitor != nil {
+		myInterface = r.interfaceMonitor.MyInterface()
+	}
 	for _, iif := range interfaces {
 		// Skip interfaces that are not up
 		if iif.Flags&net.FlagUp == 0 {
@@ -497,6 +499,22 @@ func (r *NetworkManager) findFallbackInterface() *control.Interface {
 		}
 		// Skip loopback interfaces
 		if iif.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		// Skip our own TUN interface
+		if myInterface != "" && iif.Name == myInterface {
+			continue
+		}
+		// Skip virtual/TUN/VPN/TAP interfaces by name patterns
+		nameLower := strings.ToLower(iif.Name)
+		if strings.Contains(nameLower, "tun") ||
+			strings.Contains(nameLower, "tap") ||
+			strings.Contains(nameLower, "wintun") ||
+			strings.Contains(nameLower, "sing-box") ||
+			strings.Contains(nameLower, "sing_box") ||
+			strings.Contains(nameLower, "vpn") ||
+			strings.Contains(nameLower, "virtual") ||
+			strings.Contains(nameLower, "vethernet") {
 			continue
 		}
 		// Skip interfaces without IPv4 addresses

@@ -358,7 +358,19 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 			if HookBeforeCreatePlatformInterface != nil {
 				HookBeforeCreatePlatformInterface()
 			}
-			tunInterface, err = tun.New(tunOptions)
+			for i := 0; i < 10; i++ {
+				tunInterface, err = tun.New(tunOptions)
+				if err == nil {
+					break
+				}
+				errLower := strings.ToLower(err.Error())
+				if runtime.GOOS == "windows" && (strings.Contains(errLower, "already exists") || strings.Contains(errLower, "file exists")) {
+					t.logger.Warn("Failed to create TUN interface (already exists), retrying in 500ms... (attempt ", i+1, "/10)")
+					time.Sleep(500 * time.Millisecond)
+					continue
+				}
+				break
+			}
 		}
 		monitor.Finish()
 		t.tunOptions.Name = tunOptions.Name

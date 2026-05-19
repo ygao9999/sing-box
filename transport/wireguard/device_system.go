@@ -7,7 +7,9 @@ import (
 	"net/netip"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-tun"
@@ -105,7 +107,23 @@ func (w *systemDevice) Start() error {
 	if runtime.GOOS == "darwin" {
 		tunOptions.AutoRoute = true
 	}
-	tunInterface, err := tun.New(tunOptions)
+	var (
+		tunInterface tun.Tun
+		err          error
+	)
+	for i := 0; i < 10; i++ {
+		tunInterface, err = tun.New(tunOptions)
+		if err == nil {
+			break
+		}
+		errLower := strings.ToLower(err.Error())
+		if runtime.GOOS == "windows" && (strings.Contains(errLower, "already exists") || strings.Contains(errLower, "file exists")) {
+			w.options.Logger.Warn("Failed to create WireGuard TUN interface (already exists), retrying in 500ms... (attempt ", i+1, "/10)")
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		break
+	}
 	if err != nil {
 		return err
 	}

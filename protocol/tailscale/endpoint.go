@@ -317,7 +317,23 @@ func (t *Endpoint) start() error {
 			Logger:                    t.logger,
 			EXP_ExternalConfiguration: true,
 		}
-		systemTun, err := tun.New(tunOptions)
+		var (
+			systemTun tun.Tun
+			err       error
+		)
+		for i := 0; i < 10; i++ {
+			systemTun, err = tun.New(tunOptions)
+			if err == nil {
+				break
+			}
+			errLower := strings.ToLower(err.Error())
+			if runtime.GOOS == "windows" && (strings.Contains(errLower, "already exists") || strings.Contains(errLower, "file exists")) {
+				t.logger.Warn("Failed to create Tailscale TUN interface (already exists), retrying in 500ms... (attempt ", i+1, "/10)")
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+			break
+		}
 		if err != nil {
 			return err
 		}

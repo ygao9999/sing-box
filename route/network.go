@@ -358,6 +358,11 @@ func (r *NetworkManager) AutoDetectInterfaceFunc() control.Func {
 			}
 			defaultInterface := r.interfaceMonitor.DefaultInterface()
 			if defaultInterface == nil {
+				// Fallback: try to find any active interface
+				fallback := r.findFallbackInterface()
+				if fallback != nil {
+					return fallback.Name, fallback.Index, nil
+				}
 				return "", -1, tun.ErrNoRoute
 			}
 			return defaultInterface.Name, defaultInterface.Index, nil
@@ -478,11 +483,50 @@ func (r *NetworkManager) ResetNetwork() {
 	}
 }
 
+// findFallbackInterface scans all network interfaces to find an active,
+// non-loopback interface with IPv4 addresses. This is used as a fallback when
+// the default interface monitor fails to find a 0.0.0.0/0 default route
+// (e.g., USB hotspot without a default gateway, or stale permanent routes
+// pointing to disconnected NICs).
+func (r *NetworkManager) findFallbackInterface() *control.Interface {
+	interfaces := r.interfaceFinder.Interfaces()
+	for _, iif := range interfaces {
+		// Skip interfaces that are not up
+		if iif.Flags&net.FlagUp == 0 {
+			continue
+		}
+		// Skip loopback interfaces
+		if iif.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		// Skip interfaces without IPv4 addresses
+		hasIPv4 := false
+		for _, addr := range iif.Addresses {
+			if addr.Addr().Is4() && !addr.Addr().IsLoopback() && !addr.Addr().IsLinkLocalUnicast() {
+				hasIPv4 = true
+				break
+			}
+		}
+		if !hasIPv4 {
+			continue
+		}
+		return &iif
+	}
+	return nil
+}
+
 func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interface, flags int) {
 	if defaultInterface == nil {
-		// r.pauseManager.NetworkPause()
-		r.logger.Warn("missing default interface")
-		return
+		// Fallback: try to find any active interface when default route detection fails
+		fallback := r.findFallbackInterface()
+		if fallback != nil {
+			r.logger.Info("default route not found, using fallback interface ", fallback.Name, ", index ", fallback.Index)
+			defaultInterface = fallback
+		} else {
+			// r.pauseManager.NetworkPause()
+			r.logger.Warn("missing default interface")
+			return
+		}
 	}
 
 	r.pauseManager.NetworkWake()

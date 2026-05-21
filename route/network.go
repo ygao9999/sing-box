@@ -541,7 +541,10 @@ func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interfa
 			r.logger.Info("default route not found, using fallback interface ", fallback.Name, ", index ", fallback.Index)
 			defaultInterface = fallback
 		} else {
-			// r.pauseManager.NetworkPause()
+			if r.started {
+				r.pauseManager.NetworkPause()
+				r.ResetNetwork()
+			}
 			r.logger.Warn("missing default interface")
 			return
 		}

@@ -1,6 +1,7 @@
 package rule
 
 import (
+	"runtime"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -19,8 +20,13 @@ func NewProcessPathItem(processNameList []string) *ProcessPathItem {
 		processes:  processNameList,
 		processMap: make(map[string]bool),
 	}
+	isWindows := runtime.GOOS == "windows"
 	for _, processName := range processNameList {
-		rule.processMap[processName] = true
+		if isWindows {
+			rule.processMap[strings.ToLower(processName)] = true
+		} else {
+			rule.processMap[processName] = true
+		}
 	}
 	return rule
 }
@@ -29,8 +35,14 @@ func (r *ProcessPathItem) Match(metadata *adapter.InboundContext) bool {
 	if metadata.ProcessInfo == nil {
 		return false
 	}
-	if metadata.ProcessInfo.ProcessPath != "" && r.processMap[metadata.ProcessInfo.ProcessPath] {
-		return true
+	processPath := metadata.ProcessInfo.ProcessPath
+	if processPath != "" {
+		if runtime.GOOS == "windows" {
+			processPath = strings.ToLower(processPath)
+		}
+		if r.processMap[processPath] {
+			return true
+		}
 	}
 	if C.IsAndroid {
 		for _, packageName := range metadata.ProcessInfo.AndroidPackageNames {
